@@ -12,6 +12,7 @@ if (exec 3<>/dev/tcp/127.0.0.1/2368) 2>/dev/null; then
 fi
 
 echo "Starting Ghost dev stack..."
+GHOST_URL="${GHOST_URL:-http://localhost:2368/}"
 
 # Ghost's own `url` config (default http://localhost:2368) is what session
 # CSRF checks compare the browser's Origin header against (see
@@ -49,7 +50,29 @@ fi
 # restart and the user can still tail them for context.
 { echo "=== $(date -Is) starting backend ==="; } >> /tmp/ghost-backend.log
 nohup pnpm --filter ghost dev >> /tmp/ghost-backend.log 2>&1 &
+backend_pid=$!
 disown
+
+echo "Waiting for Ghost Admin API..."
+site_endpoint="${GHOST_URL}ghost/api/admin/site/"
+backend_ready=false
+for _ in {1..120}; do
+  response_code=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 2 "$site_endpoint")
+  if [[ "$response_code" =~ ^[234][0-9][0-9]$ ]]; then
+    backend_ready=true
+    break
+  fi
+  if ! kill -0 "$backend_pid" 2>/dev/null; then
+    echo "Ghost backend exited before becoming ready. See /tmp/ghost-backend.log."
+    exit 1
+  fi
+  sleep 1
+done
+
+if [[ "$backend_ready" != true ]]; then
+  echo "Ghost Admin API did not become ready within 120 seconds. See /tmp/ghost-backend.log."
+  exit 1
+fi
 
 { echo "=== $(date -Is) starting frontends ==="; } >> /tmp/ghost-frontends.log
 # Matches root `pnpm dev`'s default fan-out (Admin + Portal only) — most
