@@ -85,7 +85,8 @@ a {
 
 .hero h1,
 .how h2,
-.cta h2 {
+.cta h2,
+.simple-page h1 {
   margin: 0;
   letter-spacing: -0.055em;
   line-height: 0.98;
@@ -302,6 +303,20 @@ a {
   padding: 24px 0 38px;
   color: #88837a;
   font-size: 12px;
+}
+
+.simple-page {
+  min-height: 100vh;
+  padding-top: 28px;
+}
+
+.simple-page section {
+  max-width: 760px;
+  padding: 180px 0;
+}
+
+.simple-page h1 {
+  font-size: clamp(48px, 7vw, 76px);
 }
 
 @media (max-width: 850px) {
