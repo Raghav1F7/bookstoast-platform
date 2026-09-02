@@ -1,0 +1,19 @@
+{
+  "name": "@bookstoast/platform-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bookstoast platform control-plane web application",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "engines": {
+    "node": ">=22.23.1"
+  },
+  "dependencies": {
+    "next": "16.2.11",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  }
+}
