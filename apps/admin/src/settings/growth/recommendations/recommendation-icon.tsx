@@ -20,14 +20,14 @@ const RecommendationIcon: React.FC<Props> = ({ title, favicon, featured_image, i
     return <div className="relative size-6 shrink-0 rounded-sm"></div>;
   }
 
-  const hint = isGhostSite ? 'This is a Ghost site that supports one-click subscribe' : '';
+  const hint = isGhostSite ? 'This is a Bookstoast site that supports one-click subscribe' : '';
 
   return (
     <div className="relative size-6 shrink-0 rounded-sm" title={hint}>
       <img alt={title} className="size-6 rounded-sm" src={icon} onError={clearIcon} />
       {isGhostSite && (
         <img
-          alt="Ghost Logo"
+          alt="Bookstoast Logo"
           className="absolute right-[-3px] bottom-[-3px] size-[14px]"
           src={GhostLogo}
         />

@@ -640,11 +640,11 @@ const NewsletterPreviewContent: React.FC<{
                   <div className="flex flex-col items-center pt-[10px] pb-[40px]">
                     <a
                       className="pointer-events-none inline-flex cursor-auto items-center px-2 py-1 text-[1.25rem] font-semibold tracking-tight text-grey-900"
-                      href="https://ghost.org"
+                      href="https://bookstoast.com"
                       style={{ color: textColor }}
                     >
                       <GhostOrb className="mr-[6px] size-4" />
-                      <span>Powered by Ghost</span>
+                      <span>Powered by Bookstoast</span>
                     </a>
                   </div>
                 )}

@@ -84,7 +84,7 @@
     },
     "site": {
         "title": {
-            "defaultValue": "Ghost",
+            "defaultValue": "Bookstoast",
             "validations": {
                 "isLength": {
                     "max": 150
@@ -540,7 +540,7 @@
             "type": "string"
         },
         "slack_username": {
-            "defaultValue": "Ghost",
+            "defaultValue": "Bookstoast",
             "type": "string"
         }
     },

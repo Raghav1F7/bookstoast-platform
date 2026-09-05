@@ -3,15 +3,18 @@ set -euo pipefail
 
 cd /workspaces/Ghost
 
-# Skip if backend is already bound to port 2368 — avoids double-starting on
-# VS Code reload/re-attach. The subshell isolates bash's noisy
-# "connection refused" message on first run when nothing's listening yet.
+# Detect whether the Ghost backend is already bound to port 2368.
+# If it is, skip only the backend launch below. We must still continue
+# through Codespaces URL configuration and frontend startup.
+backend_already_running=false
+
 if (exec 3<>/dev/tcp/127.0.0.1/2368) 2>/dev/null; then
-    echo "Ghost dev stack already running on :2368, skipping start."
-    exit 0
+    backend_already_running=true
+    echo "Ghost backend already running on :2368; skipping backend launch."
+else
+    echo "Starting Ghost dev stack..."
 fi
 
-echo "Starting Ghost dev stack..."
 GHOST_URL="${GHOST_URL:-http://localhost:2368/}"
 
 # Ghost's own `url` config (default http://localhost:2368) is what session
@@ -48,10 +51,14 @@ fi
 
 # Append to log files (don't truncate) so previous crash tails survive a
 # restart and the user can still tail them for context.
-{ echo "=== $(date -Is) starting backend ==="; } >> /tmp/ghost-backend.log
-nohup pnpm --filter ghost dev >> /tmp/ghost-backend.log 2>&1 &
-backend_pid=$!
-disown
+if [[ "$backend_already_running" != true ]]; then
+  { echo "=== $(date -Is) starting backend ==="; } >> /tmp/ghost-backend.log
+  nohup pnpm --filter ghost dev >> /tmp/ghost-backend.log 2>&1 &
+  backend_pid=$!
+  disown
+else
+  backend_pid=""
+fi
 
 echo "Waiting for Ghost Admin API..."
 site_endpoint="${GHOST_URL}ghost/api/admin/site/"
@@ -62,7 +69,7 @@ for _ in {1..120}; do
     backend_ready=true
     break
   fi
-  if ! kill -0 "$backend_pid" 2>/dev/null; then
+  if [[ "$backend_already_running" != true ]] && ! kill -0 "$backend_pid" 2>/dev/null; then
     echo "Ghost backend exited before becoming ready. See /tmp/ghost-backend.log."
     exit 1
   fi

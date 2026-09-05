@@ -576,8 +576,8 @@ const Sidebar: React.FC = () => {
               updateRoute('about');
             }}
           >
-            <img alt="Ghost Logo" className="mr-[7px] size-[18px]" src={GhostLogo} />
-            About Ghost
+            <img alt="Bookstoast Logo" className="mr-[7px] size-[18px]" src={GhostLogo} />
+            About Bookstoast
           </a>
         )}
       </nav>

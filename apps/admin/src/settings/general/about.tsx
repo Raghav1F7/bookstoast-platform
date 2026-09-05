@@ -130,7 +130,7 @@ function AboutModal() {
             rel="noopener noreferrer"
             target="_blank"
           >
-            <LucideIcon.CircleHelp className="size-4" /> Get help with Ghost
+            <LucideIcon.CircleHelp className="size-4" /> Get help with Bookstoast
           </a>
           <a
             className="flex items-center gap-2 hover:text-grey-900 dark:hover:text-grey-400"
