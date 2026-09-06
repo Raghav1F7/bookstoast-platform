@@ -24,3 +24,9 @@ git submodule update --init --recursive
 # pre-building here — their own dev targets handle it when start-dev-stack.sh
 # runs `nx run-many -t dev`.
 pnpm --filter @tryghost/parse-email-address build
+
+# Ghost's dev server expects the card asset manifest to exist. The direct
+# `pnpm --filter ghost dev` startup used by start-dev-stack.sh bypasses the
+# normal Nx asset-build cascade, so generate the assets explicitly on a fresh
+# Codespace.
+pnpm --filter ghost run build:assets
