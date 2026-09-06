@@ -34,7 +34,7 @@ WORKDIR /home/ghost
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.mjs ./
 
 # Copy the manifests of the top-level dirs that hold ghost/core's dependency
-# closure — ghost/* (core, i18n, parse-email-address), koenig/* (the kg-
+# closure — ghost/* (core, i18n, parse-email-address), koenig/* (the kg-*
 # packages), and configs/* (the shared eslint config, a dev dep in the graph).
 # --parents preserves each file's directory structure (plain COPY globs would
 # flatten them); node_modules is excluded by .dockerignore. apps/* and e2e
@@ -55,7 +55,7 @@ COPY --parents \
 
 # Copy root lifecycle scripts/hooks needed by `pnpm install`. Only the preinstall
 # hook is taken from the scripts/ workspace — copying the whole dir would bust
-# this layer (and the install below) whenever any unrelated script changes.
+# this layer (and the install below) whenever any unrelated script changes. Its
 # package.json comes along so the workspace member pnpm-workspace.yaml declares
 # actually exists; the filtered install below never builds it.
 COPY scripts/package.json scripts/enforce-package-manager.js scripts/
@@ -78,4 +78,16 @@ RUN chmod +x entrypoint.sh
 # Public app assets are served via /ghost/assets/* in dev mode.
 # Caddy forwards these paths to host frontend dev servers.
 ENV portal__url=/ghost/assets/portal/portal.min.js \
-    privacy__url=/ghost/assets/privacy/portal.min.js
+    comments__url=/ghost/assets/comments-ui/comments-ui.min.js \
+    sodoSearch__url=/ghost/assets/sodo-search/sodo-search.min.js \
+    sodoSearch__styles=/ghost/assets/sodo-search/main.css \
+    signupForm__url=/ghost/assets/signup-form/signup-form.min.js \
+    announcementBar__url=/ghost/assets/announcement-bar/announcement-bar.min.js \
+    adminToolbar__url=/ghost/assets/admin-toolbar/admin-toolbar.min.js
+
+# Source code will be mounted from host at /home/ghost/ghost/core
+# This allows the Ghost dev script to pick up file changes for hot-reload
+WORKDIR /home/ghost/ghost/core
+
+ENTRYPOINT ["/home/ghost/entrypoint.sh"]
+CMD ["pnpm", "dev"]
