@@ -37,8 +37,6 @@ if [ -n "${CODESPACES:-}" ] && [ -n "${CODESPACE_NAME:-}" ]; then
 fi
 
 if [[ "$backend_running" != true ]]; then
-    # Append to log files (don't truncate) so previous crash tails survive a
-    # restart and the user can still tail them for context.
     { echo "=== $(date -Is) starting backend ==="; } >> /tmp/ghost-backend.log
     nohup pnpm --filter ghost dev >> /tmp/ghost-backend.log 2>&1 &
     backend_pid=$!
@@ -48,7 +46,8 @@ if [[ "$backend_running" != true ]]; then
     site_endpoint="${GHOST_URL}ghost/api/admin/site/"
     backend_ready=false
     for _ in {1..120}; do
-        # `set -e` must not abort this retry loop on a transient curl failure.
+        # A transient curl failure is expected while Ghost is booting and must
+        # not terminate the script because `set -e` is enabled.
         if response_code=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 2 "$site_endpoint"); then
             :
         else
@@ -75,36 +74,102 @@ else
     echo "Ghost backend already running on :2368; reusing it."
 fi
 
-# Admin is served by the Vite dev server on 5174 (see devcontainer.json and
-# apps/admin/vite.config.ts). A healthy backend does not imply Admin is alive,
-# especially after a VS Code/Codespaces reconnect, so start frontends whenever
-# the Admin port is not responding.
+# Admin's Vite server proxies /ember-cli-live-reload.js to Ember on :4200.
+# Starting Admin and Ember concurrently creates a cold-start race: Vite can
+# become reachable while Ember is still compiling, leaving the browser on a
+# spinner with ECONNREFUSED for the live-reload script. Start the dependency
+# first and wait for its real endpoint before exposing Admin.
+emer_running=false
+if curl --silent --output /dev/null --max-time 2 http://127.0.0.1:4200/ember-cli-live-reload.js; then
+    ember_running=true
+fi
+
+if [[ "$ember_running" != true ]]; then
+    { echo "=== $(date -Is) starting Ember ==="; } >> /tmp/ghost-frontends.log
+    nohup pnpm --filter ghost-admin dev >> /tmp/ghost-frontends.log 2>&1 &
+    ember_pid=$!
+    disown
+
+    echo "Waiting for Ember live-reload service on :4200..."
+    ember_ready=false
+    for _ in {1..180}; do
+        if curl --silent --output /dev/null --max-time 2 http://127.0.0.1:4200/ember-cli-live-reload.js; then
+            ember_ready=true
+            break
+        fi
+
+        if ! kill -0 "$ember_pid" 2>/dev/null; then
+            echo "Ember admin server exited before becoming ready. See /tmp/ghost-frontends.log."
+            exit 1
+        fi
+        sleep 1
+    done
+
+    if [[ "$ember_ready" != true ]]; then
+        echo "Ember live-reload service did not become ready within 180 seconds. See /tmp/ghost-frontends.log."
+        exit 1
+    fi
+else
+    echo "Ember live-reload service already running on :4200; reusing it."
+fi
+
+# These are the direct package dev commands used by Admin's Nx target. Running
+# them explicitly here avoids Nx's continuous-dependency scheduling from
+# bringing Admin's Vite server up before Ember is ready.
 admin_running=false
 if curl --silent --output /dev/null --max-time 2 http://127.0.0.1:5174/; then
     admin_running=true
 fi
 
 if [[ "$admin_running" != true ]]; then
-    { echo "=== $(date -Is) starting frontends ==="; } >> /tmp/ghost-frontends.log
-    nohup pnpm nx run-many -t dev \
-        --projects=@tryghost/admin,@tryghost/portal \
-        >> /tmp/ghost-frontends.log 2>&1 &
+    { echo "=== $(date -Is) starting Admin/Portal watchers ==="; } >> /tmp/ghost-frontends.log
+
+    nohup pnpm --filter @tryghost/admin-x-framework dev >> /tmp/ghost-frontends.log 2>&1 &
     disown
-    echo "Admin + Portal dev watchers starting on the host (Admin: :5174)."
+
+    nohup pnpm --filter @tryghost/shade dev >> /tmp/ghost-frontends.log 2>&1 &
+    disown
+
+    nohup pnpm --filter @tryghost/admin dev >> /tmp/ghost-frontends.log 2>&1 &
+    admin_pid=$!
+    disown
+
+    nohup pnpm --filter @tryghost/portal dev >> /tmp/ghost-frontends.log 2>&1 &
+    disown
+
+    echo "Starting Admin Vite on :5174..."
+    admin_ready=false
+    for _ in {1..120}; do
+        if curl --silent --output /dev/null --max-time 2 http://127.0.0.1:5174/; then
+            admin_ready=true
+            break
+        fi
+
+        if ! kill -0 "$admin_pid" 2>/dev/null; then
+            echo "Admin Vite exited before becoming ready. See /tmp/ghost-frontends.log."
+            exit 1
+        fi
+        sleep 1
+    done
+
+    if [[ "$admin_ready" != true ]]; then
+        echo "Admin Vite did not become ready within 120 seconds. See /tmp/ghost-frontends.log."
+        exit 1
+    fi
 else
     echo "Admin dev server already running on :5174; reusing it."
 fi
 
 if [[ -n "${CODESPACES:-}" && -n "${CODESPACE_NAME:-}" ]]; then
-    admin_url="https://${CODESPACE_NAME}-5174.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-app.github.dev}/"
+    admin_url="https://${CODESPACE_NAME}-5174.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-app.github.dev}/__admin-dev__/"
     ghost_url="https://${CODESPACE_NAME}-2368.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-app.github.dev}/"
 else
-    admin_url="http://localhost:5174/"
+    admin_url="http://localhost:5174/__admin-dev__/"
     ghost_url="http://localhost:2368/"
 fi
 
 cat <<MSG
-Ghost dev stack is running/starting in the background.
+Ghost dev stack is ready.
 
   Ghost site:   $ghost_url
   Admin:        $admin_url
