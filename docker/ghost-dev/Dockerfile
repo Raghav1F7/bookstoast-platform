@@ -4,7 +4,7 @@
 
 ARG NODE_VERSION=22.23.1
 
-FROM mcr.microsoft.com/devcontainers/javascript-node:22-bullseye
+FROM node:22-bookworm-slim
 
 # Install system dependencies needed for building native modules.
 # watchman: ember-cli (ghost/admin's dev server) auto-detects and prefers it
